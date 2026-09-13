@@ -172,3 +172,6 @@ create policy "update expenses" on expenses for update
   to authenticated using (
     get_my_role() = 'owner' or station_id = get_my_station()
   );
+
+  -- User profiles (Afrid/owner, Father, Uncle) seeded manually in Supabase with real account data, not included here
+  
