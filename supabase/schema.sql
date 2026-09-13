@@ -84,3 +84,91 @@ create table expenses (
   entered_by uuid references profiles(id),
   created_at timestamptz default now()
 );
+-- Turn on RLS for every table
+alter table stations enable row level security;
+alter table profiles enable row level security;
+alter table fuel_types enable row level security;
+alter table daily_entries enable row level security;
+alter table daily_payments enable row level security;
+alter table stock_entries enable row level security;
+alter table expenses enable row level security;
+
+-- Helper: get the logged-in user's role
+create or replace function get_my_role()
+returns text as $$
+  select role from profiles where id = auth.uid();
+$$ language sql security definer stable;
+
+-- Helper: get the logged-in user's assigned station
+create or replace function get_my_station()
+returns uuid as $$
+  select station_id from profiles where id = auth.uid();
+$$ language sql security definer stable;
+
+-- Stations: anyone logged in can view both stations (needed for dropdowns)
+create policy "view stations" on stations for select
+  to authenticated using (true);
+
+-- Profiles: see your own profile, owner sees everyone's
+create policy "view profiles" on profiles for select
+  to authenticated using (id = auth.uid() or get_my_role() = 'owner');
+
+-- Fuel types: anyone logged in can view
+create policy "view fuel_types" on fuel_types for select
+  to authenticated using (true);
+
+-- Daily entries: owner + father see everything, uncle sees only their station
+create policy "view daily_entries" on daily_entries for select
+  to authenticated using (
+    get_my_role() in ('owner','father') or station_id = get_my_station()
+  );
+create policy "insert daily_entries" on daily_entries for insert
+  to authenticated with check (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+create policy "update daily_entries" on daily_entries for update
+  to authenticated using (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+
+-- Daily payments (same pattern)
+create policy "view daily_payments" on daily_payments for select
+  to authenticated using (
+    get_my_role() in ('owner','father') or station_id = get_my_station()
+  );
+create policy "insert daily_payments" on daily_payments for insert
+  to authenticated with check (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+create policy "update daily_payments" on daily_payments for update
+  to authenticated using (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+
+-- Stock entries (same pattern)
+create policy "view stock_entries" on stock_entries for select
+  to authenticated using (
+    get_my_role() in ('owner','father') or station_id = get_my_station()
+  );
+create policy "insert stock_entries" on stock_entries for insert
+  to authenticated with check (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+create policy "update stock_entries" on stock_entries for update
+  to authenticated using (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+
+-- Expenses (same pattern)
+create policy "view expenses" on expenses for select
+  to authenticated using (
+    get_my_role() in ('owner','father') or station_id = get_my_station()
+  );
+create policy "insert expenses" on expenses for insert
+  to authenticated with check (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
+create policy "update expenses" on expenses for update
+  to authenticated using (
+    get_my_role() = 'owner' or station_id = get_my_station()
+  );
