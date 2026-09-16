@@ -1,11 +1,12 @@
-import StockEntry from './StockEntry'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import StockEntry from './StockEntry'
 
 function TodaysEntry({ station, profile }) {
   const [fuelTypes, setFuelTypes] = useState([])
   const [readings, setReadings] = useState({})
   const [payments, setPayments] = useState({ cash: '', upi: '', card: '', credit: '' })
+  const [expenses, setExpenses] = useState({ category: 'staff_salary', amount: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -123,6 +124,31 @@ function TodaysEntry({ station, profile }) {
     setMessage('Saved successfully!')
   }
 
+  const handleSaveExpense = async () => {
+    if (!expenses.amount) return
+    setSaving(true)
+    setMessage('')
+
+    const { error } = await supabase.from('expenses').insert({
+      station_id: station.id,
+      entry_date: today,
+      category: expenses.category,
+      amount: parseFloat(expenses.amount),
+      notes: expenses.notes,
+      entered_by: profile.id,
+    })
+
+    setSaving(false)
+
+    if (error) {
+      console.error(error)
+      setMessage('Failed to save expense.')
+      return
+    }
+    setMessage('Expense added!')
+    setExpenses({ category: 'staff_salary', amount: '', notes: '' })
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
@@ -217,13 +243,51 @@ function TodaysEntry({ station, profile }) {
         </p>
       )}
 
-            <button
+      <button
         onClick={handleSave}
         disabled={saving}
         className="w-full bg-blue-600 text-white rounded-lg py-2 font-medium"
       >
         {saving ? 'Saving...' : "Save today's entry"}
       </button>
+
+      <div className="border-t pt-4">
+        <p className="text-sm font-medium mb-2">Add expense</p>
+        <div className="space-y-2">
+          <select
+            className="border rounded-lg px-3 py-2 text-sm w-full"
+            value={expenses.category}
+            onChange={(e) => setExpenses({ ...expenses, category: e.target.value })}
+          >
+            <option value="staff_salary">Staff salary</option>
+            <option value="electricity">Electricity</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="transport">Transport</option>
+            <option value="other">Other</option>
+          </select>
+          <input
+            type="number"
+            placeholder="Amount (₹)"
+            className="border rounded-lg px-3 py-2 text-sm w-full"
+            value={expenses.amount}
+            onChange={(e) => setExpenses({ ...expenses, amount: e.target.value })}
+          />
+          <input
+            type="text"
+            placeholder="Notes (optional)"
+            className="border rounded-lg px-3 py-2 text-sm w-full"
+            value={expenses.notes}
+            onChange={(e) => setExpenses({ ...expenses, notes: e.target.value })}
+          />
+          <button
+            onClick={handleSaveExpense}
+            disabled={saving}
+            className="w-full bg-gray-700 text-white rounded-lg py-2 text-sm font-medium"
+          >
+            Add expense
+          </button>
+        </div>
+      </div>
 
       <StockEntry station={station} profile={profile} />
     </div>
