@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import TodaysEntry from './TodaysEntry'
+import DailySummary from './DailySummary'
+import FatherEntry from './FatherEntry'
+import MonthlyReport from './MonthlyReport'
 
 const userEmails = {
   afrid: 'safrid0502@gmail.com',
@@ -13,6 +17,7 @@ function App() {
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [stations, setStations] = useState([])
   const [selectedStation, setSelectedStation] = useState(null)
+  const [view, setView] = useState('today')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -48,7 +53,6 @@ function App() {
       })
   }, [session])
 
-  // Once we have a profile, fetch the stations this person can access
   useEffect(() => {
     if (!profile) return
 
@@ -63,8 +67,7 @@ function App() {
 
         let visibleStations = data
 
-        // Uncle only sees his assigned station
-        if (profile.role === 'uncle') {
+        if (profile.role === 'uncle' || profile.role === 'staff') {
           visibleStations = data.filter((s) => s.id === profile.station_id)
         }
 
@@ -122,11 +125,35 @@ function App() {
           </div>
         )}
 
+        <div className="flex gap-2 mb-4 border-b">
+          <button
+            onClick={() => setView('today')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${
+              view === 'today' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setView('monthly')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${
+              view === 'monthly' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+            }`}
+          >
+            Monthly report
+          </button>
+        </div>
+
         {selectedStation ? (
-          <div className="text-sm text-gray-700">
-            <p className="font-medium mb-1">{selectedStation.name}</p>
-            <p>{selectedStation.brand} · {selectedStation.location}</p>
-          </div>
+          view === 'monthly' ? (
+            <MonthlyReport station={selectedStation} />
+          ) : profile.role === 'father' ? (
+            <FatherEntry station={selectedStation} profile={profile} />
+          ) : profile.role === 'owner' ? (
+            <DailySummary station={selectedStation} />
+          ) : (
+            <TodaysEntry station={selectedStation} profile={profile} />
+          )
         ) : (
           <p className="text-sm text-gray-500">No station assigned.</p>
         )}
